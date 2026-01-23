@@ -1,0 +1,55 @@
+name: ci-test
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    name: Test on Ubuntu
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:12-alpine 
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: 123456
+          POSTGRES_DB: simple_bank
+        ports:
+          - 5432:5432
+        # 健康检查
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    # 1. 拉取代码
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 2. 安装 Go 环境
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'  # 根据你本地的版本调整
+        cache: true
+
+    # 3. 安装 golang-migrate 工具
+    - name: Install golang-migrate
+      run: |
+        curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz
+        sudo mv migrate /usr/local/bin/
+        which migrate
+
+    # 4. 运行数据库迁移 (Up)
+    - name: Run migrations
+      run: migrate -path db/migration -database "postgresql://root:secret@localhost:5432/simple_bank?sslmode=disable" -verbose up
+
+    # 5. 运行测试
+    - name: Run Test
+      run: go test -v -cover ./...
