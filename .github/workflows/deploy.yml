@@ -48,7 +48,7 @@ jobs:
 
     # 4. 运行数据库迁移 (Up)
     - name: Run migrations
-      run: migrate -path db/migration -database "postgresql://root:secret@localhost:5432/simple_bank?sslmode=disable" -verbose up
+      run: migrate -path db/migration -database "postgresql://root:123456@localhost:5432/simple_bank?sslmode=disable" -verbose up
 
     # 5. 运行测试
     - name: Run Test
