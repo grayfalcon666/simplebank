@@ -33,6 +33,8 @@ func (server *Server) setupRouter() {
 	server.router.GET("/accounts/:id", server.getAccount)
 	server.router.GET("/accounts", server.listAccount)
 	server.router.POST("/transfer", server.createTransfer)
+	server.router.POST("/users", server.createUser)
+	server.router.GET("/users/:username", server.getUser)
 }
 
 func (server *Server) Start(addr string) (err error) {
