@@ -144,9 +144,10 @@ func (server *Server) loginUser(ctx *gin.Context) {
 		PasswordChangedAt: user.PasswordChangedAt,
 		CreatedAt:         user.CreatedAt,
 	}
-	rsp.AccessToken, err = server.token.CreateToken(user.Username, time.Minute)
+	rsp.AccessToken, err = server.tokenMaker.CreateToken(user.Username, server.config.AccessTokenDuration)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
 	}
 	ctx.JSON(http.StatusOK, rsp)
 }

@@ -12,20 +12,22 @@ import (
 )
 
 type Server struct {
-	store  db.Store
-	token  token.Maker
-	router *gin.Engine
+	config     util.Config
+	store      db.Store
+	tokenMaker token.Maker
+	router     *gin.Engine
 }
 
 func NewServer(config util.Config, store db.Store) (*Server, error) {
-	tokenMaker, err := token.NewPasetoMaker(config.TokenSymmetriKey)
+	tokenMaker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create token maker: %w", err)
 	}
 
 	server := &Server{
-		store: store,
-		token: tokenMaker,
+		store:      store,
+		tokenMaker: tokenMaker,
+		config:     config,
 	}
 
 	//注册验证器：看到 binding:"currency" 这个标签，就用validCurrency函数去检查
@@ -40,14 +42,19 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 
 func (server *Server) setupRouter() {
 	router := gin.Default()
+
+	router.POST("/users", server.createUser)
+	router.POST("/users/login", server.loginUser)
+
+	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
+
+	authRoutes.POST("/accounts", server.createAccount)
+	authRoutes.GET("/accounts/:id", server.getAccount)
+	authRoutes.GET("/accounts", server.listAccount)
+	authRoutes.POST("/transfer", server.createTransfer)
+	authRoutes.GET("/users/:username", server.getUser)
+
 	server.router = router
-	server.router.POST("/accounts", server.createAccount)
-	server.router.GET("/accounts/:id", server.getAccount)
-	server.router.GET("/accounts", server.listAccount)
-	server.router.POST("/transfer", server.createTransfer)
-	server.router.POST("/users", server.createUser)
-	server.router.GET("/users/:username", server.getUser)
-	server.router.POST("/users/login", server.loginUser)
 }
 
 func (server *Server) Start(addr string) (err error) {
