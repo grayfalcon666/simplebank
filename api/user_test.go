@@ -92,7 +92,7 @@ func TestCreateUserAPI(t *testing.T) {
 
 			tc.buildStubs(store)
 
-			server := NewServer(store)
+			server := NewTestServer(t, store)
 
 			recorder := httptest.NewRecorder()
 			// 把 gin.H 转换成 JSON 字节流
