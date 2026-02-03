@@ -32,23 +32,29 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Install Doppler CLI
+      uses: dopplerhq/cli-action@v3
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.22' 
         cache: true
 
-    # 安装 golang-migrate
     - name: Install golang-migrate
       run: |
         curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz
         sudo mv migrate /usr/local/bin/
         which migrate
 
-    # 运行数据库迁移 (Up)
     - name: Run migrations
-      run: migrate -path db/migration -database "postgresql://root:123456@localhost:5432/simple_bank?sslmode=disable" -verbose up
+      run: doppler run -- migrate -path db/migration -database "$DB_SOURCE" -verbose up
+      env:
+        DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        DB_SOURCE: postgresql://root:123456@localhost:5432/simple_bank?sslmode=disable
 
-    # 运行测试
     - name: Run Test
-      run: go test -v -cover ./...
+      run: doppler run -- go test -v -cover ./...
+      env:
+        DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        DB_SOURCE: postgresql://root:123456@localhost:5432/simple_bank?sslmode=disable
