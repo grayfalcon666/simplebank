@@ -23,7 +23,11 @@ func LoadConfig(path string) (config Config, err error) {
 
 	err = viper.ReadInConfig()
 	if err != nil {
-		return
+		// 如果错误是“找不到配置文件”，不应该报错返回
+		// 因为在 CI/CD 或 Docker 环境中，直接用环境变量
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return
+		}
 	}
 
 	err = viper.Unmarshal(&config)
