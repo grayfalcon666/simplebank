@@ -19,7 +19,7 @@ spec:
           image: grayfalcon/simple-bank:latest 
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
+            - containerPort: 11452
           #从 K8s Secret 中自动注入所有环境变量
           envFrom:
             - secretRef:

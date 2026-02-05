@@ -5,9 +5,8 @@ metadata:
 spec:
   selector:
     app: simple-bank-api
-  # 在 K3s 中，LoadBalancer 会自动触发自带的 ServiceLB，占用 Ubuntu 主机的端口
-  type: LoadBalancer 
+  type: ClusterIP
   ports:
     - protocol: TCP
-      port: 11452      # 外部访问端口
-      targetPort: 11452 # 容器内部端口
+      port: 80   
+      targetPort: 11452 
