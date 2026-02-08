@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
 	"simplebank/api"
 	db "simplebank/db/sqlc"
+	"simplebank/doc"
 	"simplebank/gapi"
 	"simplebank/pb"
 	"simplebank/util"
@@ -65,9 +67,17 @@ func runGatewayServer(config util.Config, store db.Store) {
 		log.Fatal("cannot register handler server:", err)
 	}
 
-	// 启动 HTTP 监听
 	mux := http.NewServeMux()
 	mux.Handle("/", grpcMux)
+
+	subFS, err := fs.Sub(doc.SwaggerFiles, "swagger")
+	if err != nil {
+		log.Fatal("cannot create sub filesystem:", err)
+	}
+
+	fsServer := http.FileServer(http.FS(subFS))
+
+	mux.Handle("/swagger/", http.StripPrefix("/swagger/", fsServer))
 
 	listener, err := net.Listen("tcp", config.HTTPServerAddress)
 	if err != nil {
@@ -79,6 +89,7 @@ func runGatewayServer(config util.Config, store db.Store) {
 	if err != nil {
 		log.Fatal("cannot start HTTP gateway server:", err)
 	}
+
 }
 
 func runGinServer(config util.Config, store db.Store) {
