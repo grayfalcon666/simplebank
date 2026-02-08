@@ -13,8 +13,10 @@ import (
 	"simplebank/gapi"
 	"simplebank/pb"
 	"simplebank/util"
+	"simplebank/worker"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/hibiken/asynq"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -34,14 +36,21 @@ func main() {
 
 	store := db.NewStore(conn)
 
-	go runGrpcServer(config, store)
+	redisOpt := asynq.RedisClientOpt{
+		Addr: config.RedisAddress,
+	}
+	taskDistributor := worker.NewRedisTaskDistributor(redisOpt)
 
-	runGatewayServer(config, store)
+	go runGrpcServer(config, store, taskDistributor)
+
+	go runTaskProcessor(config, redisOpt, store)
+
+	runGatewayServer(config, store, taskDistributor)
 
 }
 
-func runGatewayServer(config util.Config, store db.Store) {
-	server, err := gapi.NewServer(config, store)
+func runGatewayServer(config util.Config, store db.Store, distributor worker.TaskDistributor) {
+	server, err := gapi.NewServer(config, store, distributor)
 	if err != nil {
 		log.Fatal("cannot create server:", err)
 	}
@@ -58,7 +67,6 @@ func runGatewayServer(config util.Config, store db.Store) {
 
 	grpcMux := runtime.NewServeMux(jsonOption)
 
-	// 注册服务到网关
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -104,8 +112,8 @@ func runGinServer(config util.Config, store db.Store) {
 	}
 }
 
-func runGrpcServer(config util.Config, store db.Store) {
-	server, err := gapi.NewServer(config, store)
+func runGrpcServer(config util.Config, store db.Store, distributor worker.TaskDistributor) {
+	server, err := gapi.NewServer(config, store, distributor)
 	if err != nil {
 		log.Fatal("cannot create server:", err)
 	}
@@ -127,5 +135,16 @@ func runGrpcServer(config util.Config, store db.Store) {
 	err = grpcServer.Serve(listener)
 	if err != nil {
 		log.Fatal("cannot start gRPC server:", err)
+	}
+}
+
+func runTaskProcessor(config util.Config, redisOpt asynq.RedisClientOpt, store db.Store) {
+	taskProcessor := worker.NewRedisTaskProcessor(redisOpt, store)
+
+	log.Printf("start task processor")
+
+	err := taskProcessor.Start()
+	if err != nil {
+		log.Fatalf("failed to start task processor: %v", err)
 	}
 }

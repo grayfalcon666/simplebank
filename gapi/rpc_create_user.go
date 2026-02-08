@@ -5,6 +5,7 @@ import (
 	db "simplebank/db/sqlc"
 	"simplebank/pb"
 	"simplebank/util"
+	worker "simplebank/worker"
 
 	"github.com/lib/pq"
 	"google.golang.org/grpc/codes"
@@ -33,6 +34,9 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to create user: %s", err)
 	}
+
+	payload := &worker.PayloadSendVerifyEmail{Username: user.Username}
+	server.taskDistributor.DistributeTaskSendVerifyEmail(ctx, payload)
 
 	rsp := &pb.CreateUserResponse{
 		User: convertUser(user),

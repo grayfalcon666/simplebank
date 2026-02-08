@@ -11,6 +11,9 @@ postgres:
 createdb:
 	docker exec -it postgres12 createdb --username=root --owner=root simple_bank
 
+redis:
+	docker run --name redis -p 6379:6379 -d redis:7-alpine
+
 dropdb:
 	docker exec -it postgres12 dropdb simple_bank
 
