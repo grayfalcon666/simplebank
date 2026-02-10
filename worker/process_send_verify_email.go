@@ -31,13 +31,21 @@ func (processor *RedisTaskProcessor) ProcessTaskSendVerifyEmail(ctx context.Cont
 		return fmt.Errorf("failed to get user: %w", err)
 	}
 
-	// 模拟发送邮件
-	slog.InfoContext(
-		ctx,
-		"sending verify email to user",
-		"username", user.Username,
-		"email", user.Email,
-		"task_id", task.ResultWriter().TaskID(),
+	subject := "Welcome to Simple Bank"
+	content := fmt.Sprintf("Hello %s, thank you for registering!", user.FullName)
+	to := []string{user.Email}
+
+	err = processor.mailer.SendEmail(subject, content, to, nil, nil, nil)
+	logger := slog.With(
+		slog.String("username", user.Username),
+		slog.String("email", user.Email),
 	)
+
+	if err != nil {
+		logger.Error("failed to send verify email", slog.String("error", err.Error()))
+		return fmt.Errorf("failed to send verify email: %w", err)
+	}
+
+	logger.Info("success to send verify email")
 	return nil
 }
