@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -18,7 +19,7 @@ INSERT INTO users (
 ) VALUES (
   $1, $2, $3, $4
 )
-RETURNING username, hashed_password, full_name, email, password_changed_at, created_at
+RETURNING username, hashed_password, full_name, email, password_changed_at, created_at, is_email_verified
 `
 
 type CreateUserParams struct {
@@ -43,12 +44,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Email,
 		&i.PasswordChangedAt,
 		&i.CreatedAt,
+		&i.IsEmailVerified,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT username, hashed_password, full_name, email, password_changed_at, created_at FROM users
+SELECT username, hashed_password, full_name, email, password_changed_at, created_at, is_email_verified FROM users
 WHERE username = $1 LIMIT 1
 `
 
@@ -62,6 +64,48 @@ func (q *Queries) GetUser(ctx context.Context, username string) (User, error) {
 		&i.Email,
 		&i.PasswordChangedAt,
 		&i.CreatedAt,
+		&i.IsEmailVerified,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users
+SET
+  full_name = COALESCE($1, full_name),
+  email = COALESCE($2, email),
+  hashed_password = COALESCE($3, hashed_password),
+  is_email_verified = COALESCE($4, is_email_verified)
+WHERE
+  username = $5
+RETURNING username, hashed_password, full_name, email, password_changed_at, created_at, is_email_verified
+`
+
+type UpdateUserParams struct {
+	FullName        sql.NullString `json:"full_name"`
+	Email           sql.NullString `json:"email"`
+	HashedPassword  sql.NullString `json:"hashed_password"`
+	IsEmailVerified sql.NullBool   `json:"is_email_verified"`
+	Username        string         `json:"username"`
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUser,
+		arg.FullName,
+		arg.Email,
+		arg.HashedPassword,
+		arg.IsEmailVerified,
+		arg.Username,
+	)
+	var i User
+	err := row.Scan(
+		&i.Username,
+		&i.HashedPassword,
+		&i.FullName,
+		&i.Email,
+		&i.PasswordChangedAt,
+		&i.CreatedAt,
+		&i.IsEmailVerified,
 	)
 	return i, err
 }

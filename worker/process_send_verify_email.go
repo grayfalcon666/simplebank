@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	db "simplebank/db/sqlc"
+	"simplebank/util"
 
 	"github.com/hibiken/asynq"
 )
@@ -31,11 +33,24 @@ func (processor *RedisTaskProcessor) ProcessTaskSendVerifyEmail(ctx context.Cont
 		return fmt.Errorf("failed to get user: %w", err)
 	}
 
-	subject := "Welcome to Simple Bank"
-	content := fmt.Sprintf("Hello %s, thank you for registering!", user.FullName)
-	to := []string{user.Email}
+	verifyEmail, err := processor.store.CreateVerifyEmail(ctx, db.CreateVerifyEmailParams{
+		Username:   user.Username,
+		Email:      user.Email,
+		SecretCode: util.RandomString(32),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create verify email: %w", err)
+	}
 
-	err = processor.mailer.SendEmail(subject, content, to, nil, nil, nil)
+	verifyUrl := fmt.Sprintf("https://api.simplebank.website:4443/v1/verify_email?email_id=%d&secret_code=%s",
+		verifyEmail.ID, verifyEmail.SecretCode)
+
+	content := fmt.Sprintf(`Hello %s,<br/>
+    Thank you for registering with us!<br/>
+    Please <a href="%s">click here</a> to verify your email address.<br/>`,
+		user.FullName, verifyUrl)
+
+	err = processor.mailer.SendEmail("Verify your email", content, []string{user.Email}, nil, nil, nil)
 	logger := slog.With(
 		slog.String("username", user.Username),
 		slog.String("email", user.Email),
