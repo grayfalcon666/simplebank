@@ -41,7 +41,7 @@ func (server *Server) renewAccessToken(ctx *gin.Context) {
 		return
 	}
 
-	newAccessToken, payload, err := server.tokenMaker.CreateToken(session.Username, server.config.AccessTokenDuration)
+	newAccessToken, payload, err := server.tokenMaker.CreateToken(session.Username, refreshPayload.Role, server.config.AccessTokenDuration)
 
 	rsp := renewAccessTokenResponse{
 		AccessToken:          newAccessToken,
