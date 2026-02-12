@@ -6,15 +6,22 @@ import (
 	db "simplebank/db/sqlc"
 	"simplebank/pb"
 	"simplebank/util"
+	"simplebank/val"
 	worker "simplebank/worker"
 	"time"
 
 	"github.com/hibiken/asynq"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func (server *Server) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UpdateUserResponse, error) {
+	violations := validateUpdateUserRequest(req)
+	if violations != nil {
+		return nil, invalidArgumentError(violations)
+	}
+
 	authPayload, err := server.authorizeUser(ctx)
 	if err != nil {
 		return nil, unauthenticatedError(err)
@@ -66,4 +73,30 @@ func (server *Server) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest)
 
 	return &pb.UpdateUserResponse{User: convertUser(user)}, nil
 
+}
+
+func validateUpdateUserRequest(req *pb.UpdateUserRequest) (violations []*errdetails.BadRequest_FieldViolation) {
+	if err := val.ValidateUsername(req.Username); err != nil {
+		violations = append(violations, fieldViolation("username", err))
+	}
+
+	if req.Password != nil {
+		if err := val.ValidatePassword(req.GetPassword()); err != nil {
+			violations = append(violations, fieldViolation("password", err))
+		}
+	}
+
+	if req.FullName != nil {
+		if err := val.ValidateFullName(req.GetFullName()); err != nil {
+			violations = append(violations, fieldViolation("full_name", err))
+		}
+	}
+
+	if req.Email != nil {
+		if err := val.ValidateEmail(req.GetEmail()); err != nil {
+			violations = append(violations, fieldViolation("email", err))
+		}
+	}
+
+	return violations
 }
